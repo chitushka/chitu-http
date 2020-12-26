@@ -1,0 +1,43 @@
+# PhpStorm project
+.idea
+
+# Netbeans project
+nbproject
+
+# Zend Studio for eclipse project
+.buildpath
+.project
+.settings
+
+# Sublime Text project
+*.sublime-project
+*.sublime-workspace
+
+# windows thumbnail cache
+Thumbs.db
+
+# Vendors
+/vendor
+
+# Composer
+composer.phar
+composer.lock
+
+# Mac DS_Store Files
+.DS_Store
+
+# phpunit
+phpunit.phar
+.phpunit.result.cache
+
+# local phpunit config
+/phpunit.xml
+
+# NPM packages
+/node_modules
+
+# Environment
+.env
+
+# Codeception
+c3.php

@@ -1,0 +1,27 @@
+{
+    "name": "chitushka/chitu-http",
+    "description": "PSR HTTP Message implementations",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "psr/http-message": "^1.0",
+        "psr/http-factory": "^1.0"
+    },
+    "authors": [
+        {
+            "name": "Chitu",
+            "email": "chitushka@yahoo.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "chitu\\http\\": "src/"
+        }
+    }
+}
+
+
+
+
+
+
