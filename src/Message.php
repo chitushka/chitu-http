@@ -5,7 +5,6 @@ namespace chitu\http;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\StreamInterface;
 
-
 class Message implements MessageInterface
 {
     /**
@@ -55,12 +54,12 @@ class Message implements MessageInterface
      * new protocol version.
      *
      * @param string $version HTTP protocol version
-     * @return static
+     * @return MessageInterface
      */
-    public function withProtocolVersion($version): MessageInterface
+    public function withProtocolVersion($version)
     {
         if (empty($version) || !is_string($version) || !preg_match('#^(1\.[01]|2)$#', $version)) {
-            throw new \InvalidArgumentException(sprintf('Unsupported HTTP protocol version; must be a string: "%s"', $version));
+            throw new \InvalidArgumentException(sprintf('Unsupported HTTP protocol version: "%s"', $version));
         }
         $new = clone $this;
         $new->protocol = $version;
@@ -102,7 +101,7 @@ class Message implements MessageInterface
      *     name using a case-insensitive string comparison. Returns false if
      *     no matching header name is found in the message.
      */
-    public function hasHeader($header): bool
+    public function hasHeader($header)
     {
         return isset($this->headerNames[strtolower($header)]);
     }
@@ -117,11 +116,11 @@ class Message implements MessageInterface
      * empty array.
      *
      * @param string $header Case-insensitive header field name.
-     * @return string[] An array of string values as provided for the given
+     * @return array array of string values as provided for the given
      *    header. If the header does not appear in the message, this method MUST
      *    return an empty array.
      */
-    public function getHeader($header): array
+    public function getHeader($header)
     {
         if (!$this->hasHeader($header)) {
             return [];
@@ -150,7 +149,7 @@ class Message implements MessageInterface
      *    concatenated together using a comma. If the header does not appear in
      *    the message, this method MUST return an empty string.
      */
-    public function getHeaderLine($name): string
+    public function getHeaderLine($name)
     {
         $value = $this->getHeader($name);
         if (empty($value)) {
@@ -173,16 +172,15 @@ class Message implements MessageInterface
      *
      * @param string $header Case-insensitive header field name.
      * @param string|string[] $value Header value(s).
-     * @return static
+     * @return MessageInterface
      * @throws \InvalidArgumentException for invalid header names or values.
      */
-    public function withHeader($header, $value): MessageInterface
+    public function withHeader($header, $value)
     {
         if (!is_string($header) || !preg_match('/^[a-zA-Z0-9\'`#$%&*+.^_|~!-]+$/', $header)) {
             throw new \InvalidArgumentException(sprintf('Header name is not valid: "%s"', $header));
 
         }
-
         $normalized = strtolower($header);
         $new = clone $this;
 
@@ -199,14 +197,14 @@ class Message implements MessageInterface
         $value = array_map(function ($headValue) {
             if (!is_string($headValue) && !is_numeric($headValue)) {
                 throw new \InvalidArgumentException(sprintf(
-                    'Invalid header value type; must be a string or numeric; received %s',
+                    'Invalid header value type: "%s"',
                     (is_object($headValue) ? get_class($headValue) : gettype($headValue))
                 ));
             }
             $headValue = (string)$headValue;
             if (!preg_match('/[^\x09\x0a\x0d\x20-\x7E\x80-\xFE]/', $headValue) ||
                 !preg_match("#(?:(?:(?<!\r)\n)|(?:\r(?!\n))|(?:\r\n(?![ \t])))#", $headValue)) {
-                throw new \InvalidArgumentException(sprintf('"%s" is not valid header value', $headValue));
+                throw new \InvalidArgumentException(sprintf('Invalid header value: "%s"', $headValue));
             }
 
             return $headValue;
@@ -232,10 +230,10 @@ class Message implements MessageInterface
      *
      * @param string $header Case-insensitive header field name to add.
      * @param string|string[] $value Header value(s).
-     * @return static
+     * @return MessageInterface
      * @throws \InvalidArgumentException for invalid header names or values.
      */
-    public function withAddedHeader($header, $value): MessageInterface
+    public function withAddedHeader($header, $value)
     {
         if (!is_string($header) || !preg_match('/^[a-zA-Z0-9\'`#$%&*+.^_|~!-]+$/', $header)) {
             throw new \InvalidArgumentException(sprintf('Header name type is not valid: "%s"', $header));
@@ -243,7 +241,6 @@ class Message implements MessageInterface
         if (!$this->hasHeader($header)) {
             return $this->withHeader($header, $value);
         }
-
         $header = $this->headerNames[strtolower($header)];
         $new = clone $this;
 
@@ -257,14 +254,14 @@ class Message implements MessageInterface
         $value = array_map(function ($headValue) {
             if (!is_string($headValue) && !is_numeric($headValue)) {
                 throw new \InvalidArgumentException(sprintf(
-                    'Invalid header value type; must be a string or numeric; received %s',
+                    'Invalid header value type: "%s"',
                     (is_object($headValue) ? get_class($headValue) : gettype($headValue))
                 ));
             }
             $headValue = (string)$headValue;
             if (!preg_match('/[^\x09\x0a\x0d\x20-\x7E\x80-\xFE]/', $headValue) ||
                 !preg_match("#(?:(?:(?<!\r)\n)|(?:\r(?!\n))|(?:\r\n(?![ \t])))#", $headValue)) {
-                throw new \InvalidArgumentException(sprintf('"%s" is not valid header value', $headValue));
+                throw new \InvalidArgumentException(sprintf('Invalid header value: "%s"', $headValue));
             }
 
             return $headValue;
@@ -284,9 +281,9 @@ class Message implements MessageInterface
      * the named header.
      *
      * @param string $header Case-insensitive header field name to remove.
-     * @return static
+     * @return MessageInterface
      */
-    public function withoutHeader($header): MessageInterface
+    public function withoutHeader($header)
     {
         if (!$this->hasHeader($header)) {
             return clone $this;
@@ -305,7 +302,7 @@ class Message implements MessageInterface
      *
      * @return StreamInterface Returns the body as a stream.
      */
-    public function getBody(): StreamInterface
+    public function getBody()
     {
         return $this->stream;
     }
@@ -320,10 +317,10 @@ class Message implements MessageInterface
      * new body stream.
      *
      * @param StreamInterface $body Body.
-     * @return static
+     * @return MessageInterface
      * @throws \InvalidArgumentException When the body is not valid.
      */
-    public function withBody(StreamInterface $body): MessageInterface
+    public function withBody(StreamInterface $body)
     {
         $new = clone $this;
         $new->stream = $body;
