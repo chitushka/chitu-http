@@ -6,6 +6,9 @@ use Psr\Http\Message\UriInterface;
 
 class Uri implements UriInterface
 {
+    const CHAR_SUB_DELIMITERS = '!\$&\'\(\)\*\+,;=';
+    const CHAR_UNRESERVED = 'a-zA-Z0-9_\-\.~\pL';
+
     /** @var string Uri scheme. */
     private $scheme = '';
 
@@ -129,42 +132,161 @@ class Uri implements UriInterface
         return $new;
     }
 
-
+    /**
+     * @param string $user
+     * @param null $password
+     * @return UriInterface
+     */
     public function withUserInfo($user, $password = null)
     {
-        // TODO: Implement withUserInfo() method.
+        if (!is_string($user)) {
+            throw new \InvalidArgumentException(sprintf(
+                '%s expects a string user argument; received %s',
+                __METHOD__,
+                is_object($user) ? get_class($user) : gettype($user)
+            ));
+        }
+        if (null !== $password && !is_string($password)) {
+            throw new \InvalidArgumentException(sprintf(
+                '%s expects a string or null password argument; received %s',
+                __METHOD__,
+                is_object($password) ? get_class($password) : gettype($password)
+            ));
+        }
+
+        $info = $this->filterUserInfo($user);
+        if (null !== $password) {
+            $info .= ':' . $this->filterUserInfo($password);
+        }
+
+        if ($info === $this->userInfo) {
+            // Do nothing if no change was made.
+            return $this;
+        }
+
+        $new = clone $this;
+        $new->userInfo = $info;
+
+        return $new;
     }
 
-
+    /**
+     * @param string $host
+     * @return UriInterface
+     */
     public function withHost($host)
     {
-        // TODO: Implement withHost() method.
+        if (!is_string($host)) {
+            throw new \InvalidArgumentException('Host must be a string');
+        }
+
+        $host = strtolower($host);
+        if ($this->host === $host) {
+            return $this;
+        }
+
+        $new = clone $this;
+        $new->host = $host;
+
+        return $new;
     }
 
-
+    /**
+     * @param int|null $port
+     * @return UriInterface
+     */
     public function withPort($port)
     {
-        // TODO: Implement withPort() method.
+        if ($port !== null) {
+            if (!is_numeric($port) || is_float($port)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Invalid port "%s" specified; must be an integer, an integer string, or null',
+                    is_object($port) ? get_class($port) : gettype($port)
+                ));
+            }
+            $port = (int)$port;
+        }
+
+        if ($port === $this->port) {
+            // Do nothing if no change was made.
+            return $this;
+        }
+
+        if ($port !== null && ($port < 1 || $port > 65535)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Invalid port "%d" specified; must be a valid TCP/UDP port',
+                $port
+            ));
+        }
+        $new = clone $this;
+        $new->port = $port;
+
+        return $new;
     }
 
-
+    /**
+     * @param string $path
+     * @return UriInterface
+     */
     public function withPath($path)
     {
-        // TODO: Implement withPath() method.
+        if (!is_string($path)) {
+            throw new \InvalidArgumentException('Invalid path provided; must be a string');
+        }
+
+        if (strpos($path, '?') !== false) {
+            throw new \InvalidArgumentException('Invalid path provided; must not contain a query string');
+        }
+
+        if (strpos($path, '#') !== false) {
+            throw new \InvalidArgumentException('Invalid path provided; must not contain a URI fragment');
+        }
+
+        $path = $this->filterPath($path);
+        if ($path === $this->path) {
+            // Do nothing if no change was made.
+            return $this;
+        }
+
+        $new = clone $this;
+        $new->path = $path;
+
+        return $new;
     }
 
-
+    /**
+     * @param string $query
+     * @return UriInterface
+     */
     public function withQuery($query)
     {
-        // TODO: Implement withQuery() method.
+        $query = $this->filterQueryAndFragment($query);
+        if ($this->query === $query) {
+            return $this;
+        }
+
+        $new = clone $this;
+        $new->query = $query;
+
+        return $new;
     }
 
-
+    /**
+     * @param string $fragment
+     * @return UriInterface
+     */
     public function withFragment($fragment)
     {
-        // TODO: Implement withFragment() method.
-    }
+        $fragment = $this->filterQueryAndFragment($fragment);
+        if ($this->fragment === $fragment) {
+            return $this;
+        }
 
+        $new = clone $this;
+        $new->fragment = $fragment;
+
+        return $new;
+    }
 
     /**
      * @return string
@@ -191,5 +313,73 @@ class Uri implements UriInterface
         }
 
         return $uri;
+    }
+
+    /**
+     * @param string $part
+     * @return string
+     */
+    private function filterUserInfo(string $part): string
+    {
+        $part = $this->filterInvalidUtf8($part);
+
+        return preg_replace_callback('/(?:[^%' . self::CHAR_UNRESERVED . self::CHAR_SUB_DELIMITERS . ']+|%(?![A-Fa-f0-9]{2}))/u', [$this, 'urlEncodeChar'], $part);
+    }
+
+    /**
+     * @param string $string
+     * @return string
+     */
+    private function filterInvalidUtf8($string)
+    {
+        if (preg_match('//u', $string)) {
+            return $string;
+        }
+
+        $letters = str_split($string);
+        foreach ($letters as $i => $letter) {
+            if (!preg_match('//u', $letter)) {
+                $letters[$i] = $this->urlEncodeChar([$letter]);
+            }
+        }
+
+        return implode('', $letters);
+    }
+
+    /**
+     * @param string $path
+     * @return string
+     */
+    private function filterPath($path)
+    {
+        $path = $this->filterInvalidUtf8($path);
+        $path = preg_replace_callback('/(?:[^' . self::CHAR_UNRESERVED . ')(:@&=\+\$,\/;%]+|%(?![A-Fa-f0-9]{2}))/u', [$this, 'urlEncodeChar'], $path);
+        if (('' === $path) || ($path[0] !== '/')) {
+            return $path;
+        }
+
+        return '/' . ltrim($path, '/');
+    }
+
+    /**
+     * @param $str
+     * @return string
+     */
+    private function filterQueryAndFragment($str)
+    {
+        if (!is_string($str)) {
+            throw new \InvalidArgumentException('Query and fragment must be a string');
+        }
+
+        return preg_replace_callback('/(?:[^' . self::CHAR_UNRESERVED . self::CHAR_SUB_DELIMITERS . '%:@\/\?]++|%(?![A-Fa-f0-9]{2}))/', [$this, 'urlEncodeChar'], $str);
+    }
+
+    /**
+     * @param array $matches
+     * @return string
+     */
+    private function urlEncodeChar($matches)
+    {
+        return rawurlencode($matches[0]);
     }
 }
